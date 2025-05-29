@@ -1,0 +1,73 @@
+name: Musl C Standard Library & C Runtime (musl libc)
+on:
+  push:
+    tags:
+      - 'MUSL-LIBC-CRT-LINUX-v*.*.*'
+jobs:
+  build-musl:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+  
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+  
+    steps:
+      - name: Generating Unique ID
+        run: |
+          BASE_NAME=$(echo "$GITHUB_REF" | sed 's|^refs/tags/||')
+          BUILD_ID="${BASE_NAME}-$GITHUB_RUN_ID" 
+          
+          echo "BUILD_ID=$BUILD_ID" >> $GITHUB_ENV
+          echo "TAG_NAME=$BASE_NAME" >> $GITHUB_ENV
+          echo "Unique ID: $BUILD_ID"
+          echo "Base name: $BASE_NAME"
+    
+      - name: Downloading musl libc
+        run: |
+          wget https://musl.libc.org/releases/musl-1.2.5.tar.gz
+          
+      - name: Unpacking musl libc
+        run: |
+          tar -xzf musl-1.2.5.tar.gz
+          mv musl-1.2.5 musl
+          
+      - name: Installing dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential gcc make
+          
+      - name: Preparing for build musl
+        run: |
+          sudo mkdir -p /opt/musl-dist
+          
+      - name: Configuring musl libc
+        run: |
+          ./configure --prefix="/opt/musl-dist" --enable-static --enable-shared --enable-optimize=size
+        working-directory: musl/
+        
+      - name: Building musl libc
+        run: |
+          make -j$(nproc)
+          sudo make install
+        working-directory: musl/
+        
+      - name: Packaging musl libc
+        run: |
+          sudo tar --format=pax -cJf musl.tar.xz lib include bin
+        working-directory: /opt/musl-dist
+        
+      - name: Releasing Linux x86_64 musl libc
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.BUILD_ID }}
+          name: "Linux x86_64 musl libc"
+          body: |
+            ## Linux x86_64 musl libc
+           
+            Musl C Standard Library & C runtime for Linux x86_64.
+            
+          files: |
+            /opt/musl-dist/musl.tar.xz
+            
+          draft: false
