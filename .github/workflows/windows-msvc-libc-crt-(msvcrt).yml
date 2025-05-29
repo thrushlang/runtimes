@@ -76,7 +76,6 @@ jobs:
         working-directory: msvcrt-build
         run: |
           Compress-Archive -Path "dist\*" -DestinationPath "msvcrt-windows-x64.zip" -CompressionLevel Optimal
-          tar -cJf msvcrt-windows-x64.tar.xz -C dist .
 
       - name: Releasing Windows x64 MSVCRT
         uses: softprops/action-gh-release@v2
@@ -90,5 +89,5 @@ jobs:
             
           files: |
             msvcrt-build/msvcrt-windows-x64.zip
-            msvcrt-build/msvcrt-windows-x64.tar.xz
+            
           draft: false
