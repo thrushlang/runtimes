@@ -1,0 +1,107 @@
+name: Microsoft Visual C++ Runtime (MSVCRT)
+
+on:
+  push:
+    tags:
+      - 'MSVCRT-WINDOWS-v*.*.*'
+
+jobs:
+  build-msvcrt:
+    runs-on: windows-latest
+    
+    permissions:
+      contents: write
+    
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    steps:
+      - name: Generating Unique ID
+        shell: bash
+        run: |
+          BASE_NAME=$(echo "$GITHUB_REF" | sed 's|^refs/tags/||')
+          BUILD_ID="${BASE_NAME}-$GITHUB_RUN_ID"
+          echo "BUILD_ID=$BUILD_ID" >> $GITHUB_ENV
+          echo "TAG_NAME=$BASE_NAME" >> $GITHUB_ENV
+          echo "Unique ID: $BUILD_ID"
+          echo "Base name: $BASE_NAME"
+
+      - name: Setup Visual Studio Build Tools
+        uses: microsoft/setup-msbuild@v2
+        with:
+          vs-version: latest
+
+      - name: Setup Windows SDK
+        uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
+        with:
+          sdk-version: 22621
+
+      - name: Install LLVM and Clang
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: "17.0"
+
+      - name: Download Windows SDK and MSVCRT sources
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path "msvcrt-build"
+          cd msvcrt-build
+          
+          Invoke-WebRequest -Uri "https://github.com/microsoft/vcpkg/archive/refs/heads/master.zip" -OutFile "vcpkg.zip"
+          Expand-Archive -Path "vcpkg.zip" -DestinationPath "."
+          Rename-Item "vcpkg-master" "vcpkg"
+
+      - name: Setup MSVC Environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Build MSVCRT Components
+        shell: cmd
+        run: |
+          cd msvcrt-build
+          
+          REM
+          mkdir dist\lib
+          mkdir dist\include
+          mkdir dist\bin
+          
+          REM
+          copy "%VCToolsRedistDir%x64\Microsoft.VC143.CRT\*.dll" dist\bin\
+          copy "%VCToolsInstallDir%lib\x64\*.lib" dist\lib\
+          copy "%WindowsSdkDir%Include\%WindowsSDKVersion%ucrt\*.h" dist\include\
+          copy "%VCToolsInstallDir%include\*.h" dist\include\
+
+      - name: Create Custom MSVCRT Build
+        shell: cmd
+        working-directory: msvcrt-build
+        run: |
+          cl /c /O2 /MD /I"%WindowsSdkDir%Include\%WindowsSDKVersion%ucrt" /I"%VCToolsInstallDir%include" custom_runtime.c
+          lib /OUT:dist\lib\custom_msvcrt.lib custom_runtime.obj
+          
+          REM Crear archivo de configuración
+          echo Configuration: Windows x64 MSVCRT > dist\BUILD_INFO.txt
+          echo Build ID: %BUILD_ID% >> dist\BUILD_INFO.txt
+          echo Build Date: %DATE% %TIME% >> dist\BUILD_INFO.txt
+
+      - name: Package MSVCRT
+        shell: powershell
+        working-directory: msvcrt-build
+        run: |
+          Compress-Archive -Path "dist\*" -DestinationPath "msvcrt-windows-x64.zip" -CompressionLevel Optimal
+          tar -cJf msvcrt-windows-x64.tar.xz -C dist .
+
+      - name: Releasing Windows x64 MSVCRT
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.BUILD_ID }}
+          name: "Windows x64 MSVCRT"
+          body: |
+            ## Windows x64 Microsoft Visual C++ Runtime (MSVCRT)
+            
+            Microsoft Visual C++ Runtime libraries and components for Windows x64.
+            
+          files: |
+            msvcrt-build/msvcrt-windows-x64.zip
+            msvcrt-build/msvcrt-windows-x64.tar.xz
+          draft: false
