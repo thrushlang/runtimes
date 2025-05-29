@@ -1,2 +1,3 @@
-# runtimes
-Precompiled C standard library and C runtime environment (glibc, musl, and msvc) for the Thrush Programming Language
+# Runtimes
+
+This repository contains precompiled versions of **glibc**, **musl**, and **msvc**, which are standard libraries and runtime environments for integrating into The Thrush Compiler and that do not even depend on the operating system to compile.
