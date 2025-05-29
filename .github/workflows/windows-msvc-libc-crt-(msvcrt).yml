@@ -66,23 +66,10 @@ jobs:
           mkdir dist\include
           mkdir dist\bin
           
-          REM
           copy "%VCToolsRedistDir%x64\Microsoft.VC143.CRT\*.dll" dist\bin\
           copy "%VCToolsInstallDir%lib\x64\*.lib" dist\lib\
           copy "%WindowsSdkDir%Include\%WindowsSDKVersion%ucrt\*.h" dist\include\
           copy "%VCToolsInstallDir%include\*.h" dist\include\
-
-      - name: Create Custom MSVCRT Build
-        shell: cmd
-        working-directory: msvcrt-build
-        run: |
-          cl /c /O2 /MD /I"%WindowsSdkDir%Include\%WindowsSDKVersion%ucrt" /I"%VCToolsInstallDir%include" custom_runtime.c
-          lib /OUT:dist\lib\custom_msvcrt.lib custom_runtime.obj
-          
-          REM Crear archivo de configuración
-          echo Configuration: Windows x64 MSVCRT > dist\BUILD_INFO.txt
-          echo Build ID: %BUILD_ID% >> dist\BUILD_INFO.txt
-          echo Build Date: %DATE% %TIME% >> dist\BUILD_INFO.txt
 
       - name: Package MSVCRT
         shell: powershell
